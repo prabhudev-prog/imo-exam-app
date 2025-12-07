@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IMO Pro Exam Engine</title>
+    <style>
+      :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --warning: #ffc107; --bg: #f4f6f8; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
+
+      /* UTILITIES */
+      .hidden { display: none !important; }
+      .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+      /* START SCREEN */
+      .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); max-width: 500px; margin: 50px auto; }
+      h2 { text-align: center; color: #333; margin-top: 0; }
+      .input-group { margin-bottom: 20px; }
+      label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+      input, select { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+      .btn-start { background: var(--primary); color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+      .btn-start:disabled { background: #6c757d; cursor: not-allowed; }
+
+      /* DASHBOARD */
+      #dashboard { position: sticky; top: 0; z-index: 100; background: white; border-bottom: 1px solid #ddd; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); }
+      .timer-box { font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #333; background: #eee; padding: 5px 10px; border-radius: 5px; }
+      .status-bar { display: flex; gap: 8px; font-size: 0.8rem; }
+      .pill { padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; white-space: nowrap; }
+      .pill.green { background: var(--success); }
+      .pill.orange { background: var(--warning); color: #333; }
+      .pill.gray { background: #6c757d; }
+
+      /* QUESTION GRID */
+      .q-container { background: white; margin-top: 20px; border-radius: 10px; padding: 10px 20px; }
+      
+      .grid-header { display: flex; padding: 10px 0; border-bottom: 2px solid #eee; font-weight: bold; color: #333; margin-bottom: 10px; }
+      .head-q { width: 50px; } 
+      .head-opt { flex: 1; text-align: left; padding-left: 10px;}
+
+      .question-row { display: flex; align-items: center; justify-content: flex-start; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+      .q-num { font-weight: bold; width: 50px; color: #555; flex-shrink: 0; }
+
+      .options { display: flex; gap: 15px; flex-wrap: wrap; }
+      .options input { display: none; }
+      .bubble {
+        width: 35px; height: 35px; border-radius: 50%;
+        background: #f8f9fa; border: 2px solid #dee2e6;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; color: #666; cursor: pointer; user-select: none;
+      }
+      input:checked + .bubble { background: var(--primary); border-color: var(--primary); color: white; transform: scale(1.1); transition: transform 0.2s; }
+      .doubt-wrapper input:checked + .bubble { background: var(--warning); border-color: var(--warning); color: #333; }
+
+      .btn-review { background: var(--primary); color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; margin-top: 30px; cursor: pointer; }
+
+      /* MODAL */
+      .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; display: flex; justify-content: center; align-items: center; }
+      .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; }
+      .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 20px 0; }
+      .stat-box { background: #f8f9fa; padding: 10px; border-radius: 8px; }
+      .stat-val { font-size: 1.5rem; font-weight: bold; display: block; }
+      .stat-label { font-size: 0.8rem; color: #666; }
+      .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+      .btn-back { flex: 1; padding: 12px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer; }
+      .btn-confirm { flex: 1; padding: 12px; background: var(--success); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <div id="start-view">
+      <div class="card">
+        <h2>🚀 IMO Exam Setup</h2>
+        
+        <div class="input-group">
+          <label>Roll Number (Passcode)</label>
+          <input type="password" id="inp-roll" placeholder="Enter Roll No" />
+        </div>
+
+        <div class="input-group">
+           <label>Student Name</label>
+           <input type="text" id="inp-name" placeholder="Enter Full Name" />
+        </div>
+
+        <div class="input-group">
+          <label>Select Year</label>
+          <select id="inp-year">
+            <option value="2024-25">2024-25</option>
+            <option value="2023-24">2023-24</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Paper Set</label>
+          <select id="inp-set">
+            <option value="Set A">Set A</option>
+            <option value="Set B">Set B</option>
+          </select>
+        </div>
+        
+        <p id="resume-msg" class="hidden" style="color: green; text-align: center; font-size: 0.9em">Found saved progress!</p>
+        <button class="btn-start" onclick="startExam()">Start Test</button>
+      </div>
+    </div>
+
+    <div id="exam-view" class="hidden">
+      <div id="dashboard">
+        <div class="timer-box" id="timer-display">00:00</div>
+        <div class="status-bar">
+          <div class="pill green" id="count-attempted">0 Done</div>
+          <div class="pill orange" id="count-doubt">0 Doubt</div>
+          <div class="pill gray" id="count-left">50 Left</div>
+        </div>
+      </div>
+
+      <div class="container">
+        <form id="omr-form">
+          <input type="hidden" name="StudentName" id="sub-name" />
+          <input type="hidden" name="RollNumber" id="sub-roll" />
+          <input type="hidden" name="Year" id="sub-year" />
+          <input type="hidden" name="SetNumber" id="sub-set" />
+          <input type="hidden" name="TotalTime" id="sub-time" />
+
+          <div class="q-container">
+            <div class="grid-header">
+                <div class="head-q">Q.No</div>
+                <div class="head-opt">Options</div>
+            </div>
+            <div id="questions-container"></div>
+          </div>
+
+          <button type="button" class="btn-review" onclick="showReviewModal()">Review & Submit</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="review-modal" class="hidden modal-overlay">
+      <div class="modal-content">
+        <h3>📝 Exam Summary</h3>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <span class="stat-val" style="color: var(--success)" id="modal-done">0</span>
+            <span class="stat-label">Attempted</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-val" style="color: var(--warning)" id="modal-doubt">0</span>
+            <span class="stat-label">Doubt</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-val" style="color: var(--danger)" id="modal-left">50</span>
+            <span class="stat-label">Left</span>
+          </div>
+        </div>
+        <p style="color: #666; font-size: 0.9em">Are you sure you want to submit?</p>
+        <div class="modal-actions">
+          <button class="btn-back" onclick="closeReviewModal()">Keep Checking</button>
+          <button class="btn-confirm" id="final-submit-btn" onclick="submitFinal()">Yes, Submit</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- CONFIG ---
+      const TOTAL_QUESTIONS = 50;
+      const OPTIONS = ["A", "B", "C", "D"];
+      // REPLACE WITH YOUR LATEST DEPLOYED URL
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsqE1PEztf65CjCB8uQCo67-43fwNezaNvRp0CAaeyfvGVA7cAUQr6f0XZ4eoIe_TALw/exec"; 
+
+      let timerInterval;
+      let startTime;
+      let totalSeconds = 0;
+
+      window.onload = function () { checkLocalStorage(); };
+
+      // 1. LOCAL STORAGE
+      function checkLocalStorage() {
+        const savedName = localStorage.getItem("imo_name");
+        if (savedName) {
+          document.getElementById("inp-name").value = savedName;
+          document.getElementById("inp-year").value = localStorage.getItem("imo_year");
+          document.getElementById("inp-set").value = localStorage.getItem("imo_set");
+          document.getElementById("resume-msg").classList.remove("hidden");
+        }
+      }
+
+      function saveProgress() {
+        const form = document.getElementById("omr-form");
+        const formData = new FormData(form);
+        const data = {};
+        for (let [key, value] of formData.entries()) { data[key] = value; }
+        localStorage.setItem("imo_answers", JSON.stringify(data));
+        localStorage.setItem("imo_time", totalSeconds);
+      }
+
+      // --- 2. NEW START LOGIC WITH PRE-CHECK ---
+      function startExam() {
+        const name = document.getElementById("inp-name").value;
+        const roll = document.getElementById("inp-roll").value;
+        const btn = document.querySelector(".btn-start");
+
+        if (!name || !roll) { alert("Please enter Name and Roll Number"); return; }
+
+        // LOCK UI
+        const originalText = btn.innerText;
+        btn.innerText = "Verifying...";
+        btn.disabled = true;
+
+        // SEND VALIDATION REQUEST
+        const formData = new FormData();
+        formData.append("action", "validate"); // <--- This talks to your new Script Code
+        formData.append("RollNumber", roll);
+
+        fetch(SCRIPT_URL, { method: "POST", body: formData })
+          .then((response) => response.json())
+          .then((data) => {
+             // IF VERIFIED, PROCEED
+             if (data.result === "success") {
+                 proceedToExam(name, roll);
+             } else {
+                 // IF FAILED, STOP HERE
+                 alert(data.message); 
+                 btn.innerText = originalText;
+                 btn.disabled = false;
+             }
+          })
+          .catch((error) => {
+             alert("❌ Network Error. Cannot verify Roll Number.");
+             btn.innerText = originalText;
+             btn.disabled = false;
+          });
+      }
+
+      function proceedToExam(name, roll) {
+        document.getElementById("sub-name").value = name;
+        document.getElementById("sub-roll").value = roll;
+        document.getElementById("sub-year").value = document.getElementById("inp-year").value;
+        document.getElementById("sub-set").value = document.getElementById("inp-set").value;
+
+        localStorage.setItem("imo_name", name);
+        localStorage.setItem("imo_year", document.getElementById("inp-year").value);
+        localStorage.setItem("imo_set", document.getElementById("inp-set").value);
+
+        document.getElementById("start-view").classList.add("hidden");
+        document.getElementById("exam-view").classList.remove("hidden");
+
+        renderGrid();
+
+        const savedAnswers = JSON.parse(localStorage.getItem("imo_answers"));
+        if (savedAnswers) {
+          for (const [key, value] of Object.entries(savedAnswers)) {
+            const field = document.querySelector(`input[name="${key}"][value="${value}"]`);
+            if (field) field.checked = true;
+          }
+        }
+        const savedTime = localStorage.getItem("imo_time");
+        if (savedTime) totalSeconds = parseInt(savedTime);
+
+        startTimer();
+        updateStats(); 
+      }
+
+      // 3. TIMER
+      function startTimer() {
+        timerInterval = setInterval(() => {
+          totalSeconds++;
+          const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+          const s = (totalSeconds % 60).toString().padStart(2, "0");
+          document.getElementById("timer-display").innerText = `${m}:${s}`;
+          document.getElementById("sub-time").value = `${m}:${s}`;
+          if (totalSeconds % 5 === 0) saveProgress();
+        }, 1000);
+      }
+
+      // 4. RENDER
+      function renderGrid() {
+        const container = document.getElementById("questions-container");
+        container.innerHTML = ""; 
+
+        for (let i = 1; i <= TOTAL_QUESTIONS; i++) {
+          const row = document.createElement("div");
+          row.className = "question-row";
+          
+          let html = `<div class="q-num">${i}.</div><div class="options">`;
+          OPTIONS.forEach((opt) => {
+            html += `<div>
+              <input type="radio" name="Q${i}" id="q${i}_${opt}" value="${opt}" onchange="handleInput()">
+              <label class="bubble" for="q${i}_${opt}">${opt}</label>
+            </div>`;
+          });
+          html += `<div class="doubt-wrapper">
+            <input type="radio" name="Q${i}" id="q${i}_DOUBT" value="DOUBT" onchange="handleInput()">
+            <label class="bubble" for="q${i}_DOUBT">?</label>
+          </div>`;
+          html += `</div>`;
+          row.innerHTML = html;
+          container.appendChild(row);
+        }
+      }
+
+      function handleInput() { updateStats(); saveProgress(); }
+
+      function updateStats() {
+        const form = document.getElementById("omr-form");
+        const formData = new FormData(form);
+        let attempted = 0; let doubt = 0;
+        for (let i = 1; i <= TOTAL_QUESTIONS; i++) {
+          const val = formData.get(`Q${i}`);
+          if (val) { val === "DOUBT" ? doubt++ : attempted++; }
+        }
+        const left = TOTAL_QUESTIONS - (attempted + doubt);
+
+        document.getElementById("count-attempted").innerText = `${attempted} Done`;
+        document.getElementById("count-doubt").innerText = `${doubt} Doubt`;
+        document.getElementById("count-left").innerText = `${left} Left`;
+        document.getElementById("modal-done").innerText = attempted;
+        document.getElementById("modal-doubt").innerText = doubt;
+        document.getElementById("modal-left").innerText = left;
+      }
+
+      function showReviewModal() { document.getElementById("review-modal").classList.remove("hidden"); }
+      function closeReviewModal() { document.getElementById("review-modal").classList.add("hidden"); }
+
+      // 5. SUBMIT (Updated with action)
+      function submitFinal() {
+        const btn = document.getElementById("final-submit-btn");
+        btn.textContent = "Sending...";
+        btn.disabled = true;
+        clearInterval(timerInterval);
+        
+        const form = document.getElementById("omr-form");
+        const formData = new FormData(form);
+        formData.append("action", "submit"); // <--- This tells script to SAVE data
+
+        fetch(SCRIPT_URL, { method: "POST", body: formData })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.result === "success") {
+              alert("✅ Success! Exam Submitted.");
+              localStorage.clear();
+              location.reload();
+            } else {
+              alert(data.message); 
+              btn.disabled = false;
+              btn.textContent = "Yes, Submit";
+              startTimer(); 
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+            alert("❌ Error! Check internet connection.");
+            btn.textContent = "Yes, Submit";
+            btn.disabled = false;
+          });
+      }
+    </script>
+  </body>
+</html>
