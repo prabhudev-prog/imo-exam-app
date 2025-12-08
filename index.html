@@ -40,13 +40,21 @@
       .question-row { display: flex; align-items: center; justify-content: flex-start; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
       .q-num { font-weight: bold; width: 50px; color: #555; flex-shrink: 0; }
 
-      .options { display: flex; gap: 15px; flex-wrap: wrap; }
+      /* --- UPDATED OPTIONS CSS --- */
+      .options { 
+        display: flex; 
+        gap: 10px; /* Reduced gap default */
+        flex-wrap: nowrap; /* Forces one line */
+        align-items: center;
+      }
       .options input { display: none; }
+      
       .bubble {
         width: 35px; height: 35px; border-radius: 50%;
         background: #f8f9fa; border: 2px solid #dee2e6;
         display: flex; align-items: center; justify-content: center;
         font-weight: bold; color: #666; cursor: pointer; user-select: none;
+        transition: transform 0.1s;
       }
       input:checked + .bubble { background: var(--primary); border-color: var(--primary); color: white; transform: scale(1.1); transition: transform 0.2s; }
       .doubt-wrapper input:checked + .bubble { background: var(--warning); border-color: var(--warning); color: #333; }
@@ -63,6 +71,24 @@
       .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
       .btn-back { flex: 1; padding: 12px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer; }
       .btn-confirm { flex: 1; padding: 12px; background: var(--success); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+      /* --- MOBILE OPTIMIZATION --- */
+      @media (max-width: 480px) {
+        .container { padding: 10px; }
+        .q-container { padding: 10px 5px; }
+        
+        /* Make bubbles smaller on mobile */
+        .bubble { width: 30px; height: 30px; font-size: 14px; }
+        
+        /* Tighten gaps */
+        .options { gap: 5px; }
+        
+        /* Shrink Q number column */
+        .q-num, .head-q { width: 35px; margin-right: 5px; font-size: 14px; }
+        
+        /* Adjust pill size */
+        .pill { font-size: 0.7rem; padding: 3px 6px; }
+      }
     </style>
   </head>
   <body>
