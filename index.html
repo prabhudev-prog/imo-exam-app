@@ -180,13 +180,10 @@
         flex-shrink: 0;
       }
 
-      /* --- UPDATED OPTIONS CSS --- */
       .options {
         display: flex;
         gap: 10px;
-        /* Reduced gap default */
         flex-wrap: nowrap;
-        /* Forces one line */
         align-items: center;
       }
 
@@ -314,32 +311,23 @@
         .container {
           padding: 10px;
         }
-
         .q-container {
           padding: 10px 5px;
         }
-
-        /* Make bubbles smaller on mobile */
         .bubble {
           width: 30px;
           height: 30px;
           font-size: 14px;
         }
-
-        /* Tighten gaps */
         .options {
           gap: 5px;
         }
-
-        /* Shrink Q number column */
         .q-num,
         .head-q {
           width: 35px;
           margin-right: 5px;
           font-size: 14px;
         }
-
-        /* Adjust pill size */
         .pill {
           font-size: 0.7rem;
           padding: 3px 6px;
@@ -355,7 +343,12 @@
 
         <div class="input-group">
           <label>Roll Number</label>
-          <input type="password" id="inp-roll" placeholder="Enter Roll No" />
+          <input type="text" id="inp-roll" placeholder="Enter Roll No" />
+        </div>
+
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="inp-pass" placeholder="Enter password" />
         </div>
 
         <div class="input-group">
@@ -401,6 +394,7 @@
         <form id="omr-form">
           <input type="hidden" name="StudentName" id="sub-name" />
           <input type="hidden" name="RollNumber" id="sub-roll" />
+          <input type="hidden" name="Password" id="sub-pass" />
           <input type="hidden" name="Year" id="sub-year" />
           <input type="hidden" name="SetNumber" id="sub-set" />
           <input type="hidden" name="TotalTime" id="sub-time" />
@@ -473,12 +467,12 @@
       // --- CONFIG ---
       const TOTAL_QUESTIONS = 50;
       const OPTIONS = ["A", "B", "C", "D"];
-
+      // REPLACE WITH YOUR URL
       const SCRIPT_URL =
         "https://script.google.com/macros/s/AKfycbxsqE1PEztf65CjCB8uQCo67-43fwNezaNvRp0CAaeyfvGVA7cAUQr6f0XZ4eoIe_TALw/exec";
+        // "https://script.google.com/macros/s/AKfycbxEKGmjwUziJYZVwwv_-PwaPzG_vPJFcLDyVQ-rBvMr/dev"
 
       let timerInterval;
-      let startTime;
       let totalSeconds = 0;
 
       window.onload = function () {
@@ -486,13 +480,43 @@
         checkLocalStorage();
       };
 
-      // 1. LOCAL STORAGE
+      // 1. POPULATE DROPDOWNS (YOUR LOGIC KEPT AS IS)
+      function populateYears() {
+        const select = document.getElementById("inp-year");
+        const today = new Date();
+        const month = today.getMonth(); // 0 = Jan, 6 = July, 11 = Dec
+        const year = today.getFullYear();
+
+        // 1. Calculate the 'Ongoing' Academic Year Start
+        // If it's July-Dec 2025, the ongoing year is 2025.
+        let ongoingYearStart = month >= 6 ? year : year - 1;
+        let startYear = ongoingYearStart - 1;
+
+        select.innerHTML = "";
+
+        // 3. Generate 5 options backwards
+        for (let i = 0; i < 5; i++) {
+          const y1 = startYear - i;
+          const y2 = (y1 + 1).toString().slice(-2); // Get last 2 digits
+          const val = `${y1}-${y2}`;
+
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = val;
+          select.appendChild(opt);
+        }
+      }
+
+      // 2. RESTORE DATA
       function checkLocalStorage() {
         const savedName = localStorage.getItem("imo_name");
         if (savedName) {
           document.getElementById("inp-name").value = savedName;
-          document.getElementById("inp-year").value =
-            localStorage.getItem("imo_year");
+          const yearSelect = document.getElementById("inp-year");
+          const savedYear = localStorage.getItem("imo_year");
+          if ([...yearSelect.options].some((o) => o.value === savedYear)) {
+            yearSelect.value = savedYear;
+          }
           document.getElementById("inp-set").value =
             localStorage.getItem("imo_set");
           document.getElementById("resume-msg").classList.remove("hidden");
@@ -510,50 +534,54 @@
         localStorage.setItem("imo_time", totalSeconds);
       }
 
-      // --- 2. NEW START LOGIC WITH PRE-CHECK ---
+      // --- 3. LOGIN & START ---
       function startExam() {
         const name = document.getElementById("inp-name").value;
         const roll = document.getElementById("inp-roll").value;
+        const pass = document.getElementById("inp-pass").value;
+        // Capture Year/Set for validation
+        const year = document.getElementById("inp-year").value;
+        const set = document.getElementById("inp-set").value;
         const btn = document.querySelector(".btn-start");
 
-        if (!name || !roll) {
-          alert("Please enter Name and Roll Number");
+        if (!name || !roll || !pass) {
+          alert("Please enter Name, Roll Number, and Password.");
           return;
         }
 
-        // LOCK UI
-        const originalText = btn.innerText;
         btn.innerText = "Verifying...";
         btn.disabled = true;
 
-        // SEND VALIDATION REQUEST
         const formData = new FormData();
-        formData.append("action", "validate"); // <--- This talks to your new Script Code
+        formData.append("action", "validate");
         formData.append("RollNumber", roll);
+        formData.append("Password", pass);
+        // Send these so backend can check daily limit NOW
+        formData.append("Year", year);
+        formData.append("SetNumber", set);
 
         fetch(SCRIPT_URL, { method: "POST", body: formData })
           .then((response) => response.json())
           .then((data) => {
-            // IF VERIFIED, PROCEED
             if (data.result === "success") {
-              proceedToExam(name, roll);
+              proceedToExam(name, roll, pass);
             } else {
-              // IF FAILED, STOP HERE
               alert(data.message);
-              btn.innerText = originalText;
+              btn.innerText = "Start Test";
               btn.disabled = false;
             }
           })
           .catch((error) => {
-            alert("❌ Network Error. Cannot verify Roll Number.");
-            btn.innerText = originalText;
+            alert("❌ Network Error.");
+            btn.innerText = "Start Test";
             btn.disabled = false;
           });
       }
 
-      function proceedToExam(name, roll) {
+      function proceedToExam(name, roll, pass) {
         document.getElementById("sub-name").value = name;
         document.getElementById("sub-roll").value = roll;
+        document.getElementById("sub-pass").value = pass;
         document.getElementById("sub-year").value =
           document.getElementById("inp-year").value;
         document.getElementById("sub-set").value =
@@ -590,7 +618,7 @@
         updateStats();
       }
 
-      // 3. TIMER
+      // --- 4. EXAM UI ---
       function startTimer() {
         timerInterval = setInterval(() => {
           totalSeconds++;
@@ -604,26 +632,27 @@
         }, 1000);
       }
 
-      // 4. RENDER
+      // --- UPDATED: Renders A,B,C,D AND the '?' Button ---
       function renderGrid() {
         const container = document.getElementById("questions-container");
         container.innerHTML = "";
-
         for (let i = 1; i <= TOTAL_QUESTIONS; i++) {
           const row = document.createElement("div");
           row.className = "question-row";
 
           let html = `<div class="q-num">${i}.</div><div class="options">`;
+
+          // Standard Options
           OPTIONS.forEach((opt) => {
-            html += `<div>
-              <input type="radio" name="Q${i}" id="q${i}_${opt}" value="${opt}" onchange="handleInput()">
-              <label class="bubble" for="q${i}_${opt}">${opt}</label>
-            </div>`;
+            html += `<div><input type="radio" name="Q${i}" id="q${i}_${opt}" value="${opt}" onchange="handleInput()"><label class="bubble" for="q${i}_${opt}">${opt}</label></div>`;
           });
+
+          // --- ADDED: Doubt Option ---
           html += `<div class="doubt-wrapper">
-            <input type="radio" name="Q${i}" id="q${i}_DOUBT" value="DOUBT" onchange="handleInput()">
-            <label class="bubble" for="q${i}_DOUBT">?</label>
-          </div>`;
+         <input type="radio" name="Q${i}" id="q${i}_DOUBT" value="DOUBT" onchange="handleInput()">
+         <label class="bubble" for="q${i}_DOUBT">?</label>
+      </div>`;
+
           html += `</div>`;
           row.innerHTML = html;
           container.appendChild(row);
@@ -635,24 +664,33 @@
         saveProgress();
       }
 
+      // --- UPDATED: Counts 'Doubt' separately ---
       function updateStats() {
         const form = document.getElementById("omr-form");
         const formData = new FormData(form);
         let attempted = 0;
         let doubt = 0;
-        for (let i = 1; i <= TOTAL_QUESTIONS; i++) {
-          const val = formData.get(`Q${i}`);
-          if (val) {
-            val === "DOUBT" ? doubt++ : attempted++;
+
+        for (let pair of formData.entries()) {
+          if (pair[0].startsWith("Q")) {
+            if (pair[1] === "DOUBT") {
+              doubt++;
+            } else {
+              attempted++;
+            }
           }
         }
+
         const left = TOTAL_QUESTIONS - (attempted + doubt);
 
+        // Update Top Bar
         document.getElementById(
           "count-attempted"
         ).innerText = `${attempted} Done`;
-        document.getElementById("count-doubt").innerText = `${doubt} Doubt`;
+        document.getElementById("count-doubt").innerText = `${doubt} Doubt`; // Now updates!
         document.getElementById("count-left").innerText = `${left} Left`;
+
+        // Update Modal
         document.getElementById("modal-done").innerText = attempted;
         document.getElementById("modal-doubt").innerText = doubt;
         document.getElementById("modal-left").innerText = left;
@@ -665,51 +703,26 @@
         document.getElementById("review-modal").classList.add("hidden");
       }
 
-      // 5. GENERATE YEARS ---
-      function populateYears() {
-        const select = document.getElementById("inp-year");
-        const today = new Date();
-        const month = today.getMonth(); // 0 = Jan, 6 = July, 11 = Dec
-        const year = today.getFullYear();
-
-        // 1. Calculate the 'Ongoing' Academic Year Start
-        // If it's July-Dec 2025, the ongoing year is 2025.
-        let ongoingYearStart = month >= 6 ? year : year - 1;
-        let startYear = ongoingYearStart - 1;
-
-        select.innerHTML = "";
-
-        // 3. Generate 5 options backwards
-        for (let i = 0; i < 5; i++) {
-          const y1 = startYear - i;
-          const y2 = (y1 + 1).toString().slice(-2); // Get last 2 digits
-          const val = `${y1}-${y2}`;
-
-          const opt = document.createElement("option");
-          opt.value = val;
-          opt.textContent = val;
-          select.appendChild(opt);
-        }
-      }
-
-      // 6. SUBMIT
+      // --- 5. SUBMIT ---
       function submitFinal() {
         const btn = document.getElementById("final-submit-btn");
-        btn.textContent = "Sending...";
+        btn.textContent = "Analyzing...";
         btn.disabled = true;
         clearInterval(timerInterval);
 
         const form = document.getElementById("omr-form");
         const formData = new FormData(form);
-        formData.append("action", "submit"); // <--- This tells script to SAVE data
+        formData.append("action", "submit");
+        formData.append("Password", document.getElementById("sub-pass").value);
 
         fetch(SCRIPT_URL, { method: "POST", body: formData })
           .then((response) => response.json())
           .then((data) => {
             if (data.result === "success") {
-              alert("✅ Success! Exam Submitted.");
+              document.getElementById("exam-view").classList.add("hidden");
+              document.getElementById("review-modal").classList.add("hidden");
+              showResultScreen(data);
               localStorage.clear();
-              location.reload();
             } else {
               alert(data.message);
               btn.disabled = false;
@@ -718,11 +731,97 @@
             }
           })
           .catch((error) => {
-            console.error(error);
-            alert("❌ Error! Check internet connection.");
+            alert("❌ Error! Check internet.");
             btn.textContent = "Yes, Submit";
             btn.disabled = false;
           });
+      }
+
+      // --- 6. REPORT SCREEN ---
+      function showResultScreen(data) {
+        const body = document.body;
+        body.innerHTML = "";
+
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        const timeString = `${m}m ${s}s`;
+
+        let tableRows = data.mistakes
+          .map(
+            (m) => `
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:10px; font-weight:bold;">${m.q}</td>
+        <td style="padding:10px; font-size:0.9em; color:#666;">${m.section}</td>
+        <td style="padding:10px; color:#dc3545; font-weight:bold;">${
+          m.student === "DOUBT" ? "?" : m.student
+        }</td>
+        <td style="padding:10px; color:#28a745; font-weight:bold;">${
+          m.correct
+        }</td>
+      </tr>
+    `
+          )
+          .join("");
+
+        const resultDiv = document.createElement("div");
+        resultDiv.className = "container";
+
+        resultDiv.innerHTML = `
+      <div class="card" style="text-align:center; max-width:800px;">
+         <h1 style="color:#007bff">📊 Coach Insight Report</h1>
+         
+         <div class="stat-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom:20px;">
+           <div class="stat-box" style="border-left: 5px solid #28a745;">
+             <span class="stat-label">Performance</span>
+             <span class="stat-val" style="color:#28a745; font-size:1.8rem;">${
+               data.percentage
+             }%</span>
+             <span class="stat-label" style="font-size:0.7em;">${
+               data.score
+             } / ${data.maxScore}</span>
+           </div>
+           <div class="stat-box" style="border-left: 5px solid #dc3545;">
+             <span class="stat-label">Weakest Area</span>
+             <span class="stat-val" style="color:#dc3545; font-size:1.1rem; line-height:1.2; padding-top:5px;">${
+               data.weakestSection
+             }</span>
+             <span class="stat-label" style="font-size:0.7em;">Needs Focus</span>
+           </div>
+           <div class="stat-box" style="border-left: 5px solid #007bff;">
+             <span class="stat-label">Time Taken</span>
+             <span class="stat-val" style="color:#007bff; font-size:1.4rem;">${timeString}</span>
+             <span class="stat-label" style="font-size:0.7em;">Efficiency</span>
+           </div>
+         </div>
+
+         <h3 style="text-align:left; margin-top:30px; border-bottom:2px solid #eee; padding-bottom:10px;">
+            ⚠️ Detailed Error Log
+         </h3>
+         
+         <div style="overflow-x:auto;">
+           <table style="width:100%; border-collapse:collapse; text-align:left;">
+             <thead>
+               <tr style="background:#f8f9fa;">
+                 <th style="padding:10px;">Q.No</th>
+                 <th style="padding:10px;">Section</th>
+                 <th style="padding:10px;">Student</th>
+                 <th style="padding:10px;">Key</th>
+               </tr>
+             </thead>
+             <tbody>
+               ${
+                 tableRows.length > 0
+                   ? tableRows
+                   : '<tr><td colspan="4" style="padding:20px; text-align:center; color:green;">🎉 No Mistakes! Perfect Score!</td></tr>'
+               }
+             </tbody>
+           </table>
+         </div>
+
+         <button class="btn-review" onclick="location.reload()" style="margin-top:30px;">Close Report</button>
+      </div>
+    `;
+        body.appendChild(resultDiv);
       }
     </script>
   </body>
