@@ -469,8 +469,8 @@
       const OPTIONS = ["A", "B", "C", "D"];
       // REPLACE WITH YOUR URL
       const SCRIPT_URL =
-        "https://script.google.com/macros/s/AKfycbxsqE1PEztf65CjCB8uQCo67-43fwNezaNvRp0CAaeyfvGVA7cAUQr6f0XZ4eoIe_TALw/exec";
-        // "https://script.google.com/macros/s/AKfycbxEKGmjwUziJYZVwwv_-PwaPzG_vPJFcLDyVQ-rBvMr/dev"
+        // "https://script.google.com/macros/s/AKfycbxsqE1PEztf65CjCB8uQCo67-43fwNezaNvRp0CAaeyfvGVA7cAUQr6f0XZ4eoIe_TALw/exec";
+        "https://script.google.com/macros/s/AKfycbxQL9RJdx064_3NA1rwKyXjsHi0GY2rMmPyG2UhPX_R04IKB028G1LITD-fHmdEb4QUBg/exec";
 
       let timerInterval;
       let totalSeconds = 0;
@@ -772,26 +772,30 @@
          
          <div class="stat-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom:20px;">
            <div class="stat-box" style="border-left: 5px solid #28a745;">
-             <span class="stat-label">Performance</span>
-             <span class="stat-val" style="color:#28a745; font-size:1.8rem;">${
-               data.percentage
-             }%</span>
-             <span class="stat-label" style="font-size:0.7em;">${
-               data.score
-             } / ${data.maxScore}</span>
+             <span class="stat-label">Score</span>
+             <span class="stat-val" style="color:#28a745; font-size:1.8rem;">${data.percentage}%</span>
+             <span class="stat-label" style="font-size:0.7em;">${data.score} / ${data.maxScore}</span>
            </div>
+           
+           <div class="stat-box" style="border-left: 5px solid #007bff;">
+             <span class="stat-label">Accuracy</span>
+             <span class="stat-val" style="color:#007bff; font-size:1.4rem;">${data.accuracy || '0%'}</span>
+             <span class="stat-label" style="font-size:0.7em;">Quality of Attempt</span>
+           </div>
+
            <div class="stat-box" style="border-left: 5px solid #dc3545;">
              <span class="stat-label">Weakest Area</span>
-             <span class="stat-val" style="color:#dc3545; font-size:1.1rem; line-height:1.2; padding-top:5px;">${
-               data.weakestSection
-             }</span>
-             <span class="stat-label" style="font-size:0.7em;">Needs Focus</span>
+             <span class="stat-val" style="color:#dc3545; font-size:1.1rem; line-height:1.2; padding-top:5px;">${data.weakestSection}</span>
            </div>
-           <div class="stat-box" style="border-left: 5px solid #007bff;">
-             <span class="stat-label">Time Taken</span>
-             <span class="stat-val" style="color:#007bff; font-size:1.4rem;">${timeString}</span>
-             <span class="stat-label" style="font-size:0.7em;">Efficiency</span>
-           </div>
+         </div>
+
+         <div style="background:#f8f9fa; padding:15px; border-radius:8px; text-align:left; margin-bottom:20px;">
+            <h4 style="margin:0 0 10px 0; color:#555;">🧩 Section Breakdown</h4>
+            <pre style="margin:0; font-family:inherit; white-space: pre-wrap; color:#333;">${data.sectionReport || 'No Data'}</pre>
+         </div>
+
+         <div style="background:#fff3cd; padding:10px; border-radius:8px; font-size:0.9em; margin-bottom:20px; border:1px solid #ffeeba;">
+            <strong>Strategy:</strong> ${data.strategy || ''}
          </div>
 
          <h3 style="text-align:left; margin-top:30px; border-bottom:2px solid #eee; padding-bottom:10px;">
@@ -809,11 +813,7 @@
                </tr>
              </thead>
              <tbody>
-               ${
-                 tableRows.length > 0
-                   ? tableRows
-                   : '<tr><td colspan="4" style="padding:20px; text-align:center; color:green;">🎉 No Mistakes! Perfect Score!</td></tr>'
-               }
+               ${tableRows.length > 0 ? tableRows : '<tr><td colspan="4" style="text-align:center; padding:20px;">🎉 Clean Sheet! Great Job!</td></tr>'}
              </tbody>
            </table>
          </div>
