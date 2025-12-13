@@ -366,6 +366,8 @@
           <select id="inp-set">
             <option value="Set A">Set A</option>
             <option value="Set B">Set B</option>
+            <option value="Set C">Set C</option>
+            <option value="Set D">Set D</option>
           </select>
         </div>
 
@@ -374,7 +376,7 @@
           class="hidden"
           style="color: green; text-align: center; font-size: 0.9em"
         >
-          Found saved progress!
+          <b>Found saved progress!</b>
         </p>
         <button class="btn-start" onclick="startExam()">Start Test</button>
       </div>
@@ -391,6 +393,22 @@
       </div>
 
       <div class="container">
+        <div style="text-align: center; margin-bottom: 20px">
+          <h2 style="margin: 0; color: #333">IMO Practice Exam</h2>
+          <div
+            id="exam-header-details"
+            style="
+              display: inline-block;
+              background: #e3f2fd;
+              color: #0d47a1;
+              padding: 5px 15px;
+              border-radius: 20px;
+              font-weight: bold;
+              font-size: 0.9rem;
+              margin-top: 5px;
+            "
+          ></div>
+        </div>
         <form id="omr-form">
           <input type="hidden" name="StudentName" id="sub-name" />
           <input type="hidden" name="RollNumber" id="sub-roll" />
@@ -464,42 +482,53 @@
     </div>
 
     <script>
-      // --- CONFIG ---
       const TOTAL_QUESTIONS = 50;
+      // Array of multiple choice options
       const OPTIONS = ["A", "B", "C", "D"];
-      // REPLACE WITH YOUR URL
-      const SCRIPT_URL =
-        // "https://script.google.com/macros/s/AKfycbxsqE1PEztf65CjCB8uQCo67-43fwNezaNvRp0CAaeyfvGVA7cAUQr6f0XZ4eoIe_TALw/exec";
-        "https://script.google.com/macros/s/AKfycbxQL9RJdx064_3NA1rwKyXjsHi0GY2rMmPyG2UhPX_R04IKB028G1LITD-fHmdEb4QUBg/exec";
 
+      const SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbxsqE1PEztf65CjCB8uQCo67-43fwNezaNvRp0CAaeyfvGVA7cAUQr6f0XZ4eoIe_TALw/exec";
+
+      // Variable to store the timer interval ID for clearing later
       let timerInterval;
+      // Tracks total elapsed time in seconds during the exam
       let totalSeconds = 0;
 
+      // Runs when the HTML page fully loads
       window.onload = function () {
+        // Populate the year dropdown with available academic years
         populateYears();
+        // Check if there's any saved progress in browser storage
         checkLocalStorage();
       };
 
-      // 1. POPULATE DROPDOWNS (YOUR LOGIC KEPT AS IS)
+      // 1. POPULATE DROPDOWNS (Year Selection)
+      // Generates a list of academic years based on the current date
+      // Academic year runs from June to May
       function populateYears() {
         const select = document.getElementById("inp-year");
         const today = new Date();
         const month = today.getMonth(); // 0 = Jan, 6 = July, 11 = Dec
         const year = today.getFullYear();
 
-        // 1. Calculate the 'Ongoing' Academic Year Start
-        // If it's July-Dec 2025, the ongoing year is 2025.
+        // Calculate the current academic year
+        // If month is July (6) or later, the ongoing year started in current year
+        // Otherwise, it started in the previous year
         let ongoingYearStart = month >= 6 ? year : year - 1;
         let startYear = ongoingYearStart - 1;
 
+        // Clear any existing options
         select.innerHTML = "";
 
-        // 3. Generate 5 options backwards
+        // Generate 5 academic year options going backwards in time
         for (let i = 0; i < 5; i++) {
           const y1 = startYear - i;
-          const y2 = (y1 + 1).toString().slice(-2); // Get last 2 digits
+          // Extract last 2 digits of the ending year (e.g., 2024 becomes "24")
+          const y2 = (y1 + 1).toString().slice(-2);
+          // Format as "2023-24", "2022-23", etc.
           const val = `${y1}-${y2}`;
 
+          // Create a new option element and add it to the dropdown
           const opt = document.createElement("option");
           opt.value = val;
           opt.textContent = val;
@@ -507,101 +536,135 @@
         }
       }
 
-      // 2. RESTORE DATA
+      // 2. RESTORE SAVED DATA (Auto-fill from previous session)
+      // Checks if the student has previously started an exam and pre-fills their information
       function checkLocalStorage() {
+        // Retrieve saved student name from browser local storage
         const savedName = localStorage.getItem("imo_name");
         if (savedName) {
+          // Pre-fill the name field
           document.getElementById("inp-name").value = savedName;
+          
+          // Get the year dropdown and saved academic year
           const yearSelect = document.getElementById("inp-year");
           const savedYear = localStorage.getItem("imo_year");
+          
+          // Check if the saved year exists in the dropdown before setting it
           if ([...yearSelect.options].some((o) => o.value === savedYear)) {
             yearSelect.value = savedYear;
           }
+          
+          // Pre-fill the paper set (A, B, C, or D)
           document.getElementById("inp-set").value =
             localStorage.getItem("imo_set");
+          
+          // Display a message indicating saved progress was found
           document.getElementById("resume-msg").classList.remove("hidden");
         }
       }
 
+      // Saves the current exam progress to browser storage
+      // This allows students to resume if they accidentally close the browser
       function saveProgress() {
+        // Get all form data (student answers)
         const form = document.getElementById("omr-form");
         const formData = new FormData(form);
+        
+        // Convert form data to a regular JavaScript object
         const data = {};
         for (let [key, value] of formData.entries()) {
           data[key] = value;
         }
+        
+        // Save answers and elapsed time to local storage
         localStorage.setItem("imo_answers", JSON.stringify(data));
         localStorage.setItem("imo_time", totalSeconds);
       }
 
-      // --- 3. LOGIN & START ---
+      // --- 3. LOGIN & EXAM START ---
+      // Main function to validate student credentials and start the exam
       function startExam() {
+        // Collect student information from input fields
         const name = document.getElementById("inp-name").value;
         const roll = document.getElementById("inp-roll").value;
         const pass = document.getElementById("inp-pass").value;
-        // Capture Year/Set for validation
         const year = document.getElementById("inp-year").value;
         const set = document.getElementById("inp-set").value;
         const btn = document.querySelector(".btn-start");
 
+        // Validate that all required fields are filled
         if (!name || !roll || !pass) {
           alert("Please enter Name, Roll Number, and Password.");
           return;
         }
 
+        // Show loading state on the button
         btn.innerText = "Verifying...";
         btn.disabled = true;
 
+        // Prepare data to send to the backend for validation
         const formData = new FormData();
         formData.append("action", "validate");
         formData.append("RollNumber", roll);
         formData.append("Password", pass);
-        // Send these so backend can check daily limit NOW
         formData.append("Year", year);
         formData.append("SetNumber", set);
 
+        // Send validation request to Google Apps Script backend
         fetch(SCRIPT_URL, { method: "POST", body: formData })
           .then((response) => response.json())
           .then((data) => {
+            // If validation is successful, proceed to the exam
             if (data.result === "success") {
               proceedToExam(name, roll, pass);
             } else {
+              // Show error message from backend (e.g., wrong password)
               alert(data.message);
               btn.innerText = "Start Test";
               btn.disabled = false;
             }
           })
           .catch((error) => {
+            // Handle network errors
             alert("❌ Network Error.");
             btn.innerText = "Start Test";
             btn.disabled = false;
           });
       }
 
+      // Proceed to exam after successful authentication
+      // Hides the login screen and shows the exam grid
       function proceedToExam(name, roll, pass) {
+        // Populate hidden form fields with student information
         document.getElementById("sub-name").value = name;
         document.getElementById("sub-roll").value = roll;
         document.getElementById("sub-pass").value = pass;
-        document.getElementById("sub-year").value =
-          document.getElementById("inp-year").value;
-        document.getElementById("sub-set").value =
-          document.getElementById("inp-set").value;
 
+        // Get and store the exam year and paper set
+        const currentYear = document.getElementById("inp-year").value;
+        const currentSet = document.getElementById("inp-set").value;
+
+        document.getElementById("sub-year").value = currentYear;
+        document.getElementById("sub-set").value = currentSet;
+
+        // Display exam details in the header
+        document.getElementById(
+          "exam-header-details"
+        ).innerText = `${currentYear}    ${currentSet}`;
+
+        // Save exam details to browser storage for potential resumption
         localStorage.setItem("imo_name", name);
-        localStorage.setItem(
-          "imo_year",
-          document.getElementById("inp-year").value
-        );
-        localStorage.setItem(
-          "imo_set",
-          document.getElementById("inp-set").value
-        );
+        localStorage.setItem("imo_year", currentYear);
+        localStorage.setItem("imo_set", currentSet);
 
+        // Hide the login screen and show the exam screen
         document.getElementById("start-view").classList.add("hidden");
         document.getElementById("exam-view").classList.remove("hidden");
 
+        // Generate the question grid (50 questions with A, B, C, D, ? options)
         renderGrid();
 
+        // Restore previously saved answers if they exist
         const savedAnswers = JSON.parse(localStorage.getItem("imo_answers"));
         if (savedAnswers) {
           for (const [key, value] of Object.entries(savedAnswers)) {
@@ -611,43 +674,61 @@
             if (field) field.checked = true;
           }
         }
+        
+        // Restore previously saved elapsed time if it exists
         const savedTime = localStorage.getItem("imo_time");
         if (savedTime) totalSeconds = parseInt(savedTime);
 
+        // Start the timer and update statistics
         startTimer();
         updateStats();
       }
 
       // --- 4. EXAM UI ---
+      // Starts the countdown timer that displays elapsed time
+      // Updates the timer display every second and saves progress every 5 seconds
       function startTimer() {
         timerInterval = setInterval(() => {
+          // Increment total seconds
           totalSeconds++;
+          
+          // Convert seconds to MM:SS format
           const m = Math.floor(totalSeconds / 60)
             .toString()
-            .padStart(2, "0");
+            .padStart(2, "0"); // Pad with zero to ensure 2 digits
           const s = (totalSeconds % 60).toString().padStart(2, "0");
+          
+          // Display the formatted time on the dashboard
           document.getElementById("timer-display").innerText = `${m}:${s}`;
+          
+          // Update the hidden time field with current time
           document.getElementById("sub-time").value = `${m}:${s}`;
+          
+          // Auto-save progress every 5 seconds to prevent data loss
           if (totalSeconds % 5 === 0) saveProgress();
-        }, 1000);
+        }, 1000); // Run every 1000 milliseconds (1 second)
       }
 
-      // --- UPDATED: Renders A,B,C,D AND the '?' Button ---
+      // Generates the OMR (Optical Mark Recognition) grid with all questions
+      // Creates 50 question rows with A, B, C, D options and a doubt (?) button
       function renderGrid() {
         const container = document.getElementById("questions-container");
+        // Clear any existing questions
         container.innerHTML = "";
+        
+        // Create 50 question rows
         for (let i = 1; i <= TOTAL_QUESTIONS; i++) {
           const row = document.createElement("div");
           row.className = "question-row";
 
           let html = `<div class="q-num">${i}.</div><div class="options">`;
 
-          // Standard Options
+          // Add the four standard multiple choice options (A, B, C, D)
           OPTIONS.forEach((opt) => {
             html += `<div><input type="radio" name="Q${i}" id="q${i}_${opt}" value="${opt}" onchange="handleInput()"><label class="bubble" for="q${i}_${opt}">${opt}</label></div>`;
           });
 
-          // --- ADDED: Doubt Option ---
+          // Add the "doubt" option (?) for questions the student is unsure about
           html += `<div class="doubt-wrapper">
          <input type="radio" name="Q${i}" id="q${i}_DOUBT" value="DOUBT" onchange="handleInput()">
          <label class="bubble" for="q${i}_DOUBT">?</label>
@@ -659,93 +740,128 @@
         }
       }
 
+      // Called whenever the student changes an answer
+      // Updates the statistics and saves progress automatically
       function handleInput() {
+        // Recalculate and display updated statistics (done, doubt, left)
         updateStats();
+        // Auto-save the current answers to browser storage
         saveProgress();
       }
 
-      // --- UPDATED: Counts 'Doubt' separately ---
+      // Updates the dashboard statistics showing number of answers completed, doubts, and remaining
       function updateStats() {
+        // Get all form data (student answers)
         const form = document.getElementById("omr-form");
         const formData = new FormData(form);
         let attempted = 0;
         let doubt = 0;
 
+        // Count attempted answers and doubt marks
         for (let pair of formData.entries()) {
+          // Only process fields that start with "Q" (question fields)
           if (pair[0].startsWith("Q")) {
             if (pair[1] === "DOUBT") {
+              // If the answer is "DOUBT", increment doubt counter
               doubt++;
             } else {
+              // Otherwise, it's a regular attempt with A, B, C, or D
               attempted++;
             }
           }
         }
 
+        // Calculate remaining unanswered questions
         const left = TOTAL_QUESTIONS - (attempted + doubt);
 
-        // Update Top Bar
+        // Update the dashboard display with current statistics
         document.getElementById(
           "count-attempted"
         ).innerText = `${attempted} Done`;
-        document.getElementById("count-doubt").innerText = `${doubt} Doubt`; // Now updates!
+        document.getElementById("count-doubt").innerText = `${doubt} Doubt`;
         document.getElementById("count-left").innerText = `${left} Left`;
 
-        // Update Modal
+        // Also update the review modal statistics
         document.getElementById("modal-done").innerText = attempted;
         document.getElementById("modal-doubt").innerText = doubt;
         document.getElementById("modal-left").innerText = left;
       }
 
+      // Shows the review/summary modal before final submission
       function showReviewModal() {
         document.getElementById("review-modal").classList.remove("hidden");
       }
+      
+      // Hides the review modal when the student wants to continue answering
       function closeReviewModal() {
         document.getElementById("review-modal").classList.add("hidden");
       }
 
-      // --- 5. SUBMIT ---
+      // --- 5. FINAL SUBMISSION ---
+      // Submits the completed exam to the backend for evaluation
       function submitFinal() {
+        // Get the submit button and change it to show loading state
         const btn = document.getElementById("final-submit-btn");
         btn.textContent = "Analyzing...";
         btn.disabled = true;
+        
+        // Stop the timer so no more time is added after submission
         clearInterval(timerInterval);
 
+        // Prepare the form data for submission
         const form = document.getElementById("omr-form");
         const formData = new FormData(form);
+        
+        // Add action and password to the submission
         formData.append("action", "submit");
         formData.append("Password", document.getElementById("sub-pass").value);
 
+        // Send the exam to the backend for evaluation
         fetch(SCRIPT_URL, { method: "POST", body: formData })
           .then((response) => response.json())
           .then((data) => {
+            // If submission was successful, process the results
             if (data.result === "success") {
+              // Hide exam and modal screens
               document.getElementById("exam-view").classList.add("hidden");
               document.getElementById("review-modal").classList.add("hidden");
+              
+              // Display the performance report
               showResultScreen(data);
+              
+              // Clear all saved data since exam is complete
               localStorage.clear();
             } else {
+              // Show error message from backend
               alert(data.message);
               btn.disabled = false;
               btn.textContent = "Yes, Submit";
+              // Resume the timer if submission failed
               startTimer();
             }
           })
           .catch((error) => {
+            // Handle network errors during submission
             alert("❌ Error! Check internet.");
             btn.textContent = "Yes, Submit";
             btn.disabled = false;
           });
       }
 
-      // --- 6. REPORT SCREEN ---
+      // --- 6. PERFORMANCE REPORT SCREEN ---
+      // Displays the final exam results and detailed analysis after submission
       function showResultScreen(data) {
+        // Clear the entire page body
         const body = document.body;
         body.innerHTML = "";
 
+        // Calculate total time spent on the exam
         const m = Math.floor(totalSeconds / 60);
         const s = totalSeconds % 60;
         const timeString = `${m}m ${s}s`;
 
+        // Create a table of mistakes showing incorrect answers
+        // Maps each mistake to a table row with question number, section, student's answer, and correct answer
         let tableRows = data.mistakes
           .map(
             (m) => `
@@ -763,47 +879,67 @@
           )
           .join("");
 
+        // Create the results container
         const resultDiv = document.createElement("div");
         resultDiv.className = "container";
 
+        // Build the HTML for the complete performance report
         resultDiv.innerHTML = `
       <div class="card" style="text-align:center; max-width:800px;">
-         <h1 style="color:#007bff">📊 Coach Insight Report</h1>
+         <h1 style="color:#007bff">📊 Performance Report</h1>
          
+         <!-- Score Statistics Grid -->
          <div class="stat-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom:20px;">
+           <!-- Score Section -->
            <div class="stat-box" style="border-left: 5px solid #28a745;">
              <span class="stat-label">Score</span>
-             <span class="stat-val" style="color:#28a745; font-size:1.8rem;">${data.percentage}%</span>
-             <span class="stat-label" style="font-size:0.7em;">${data.score} / ${data.maxScore}</span>
+             <span class="stat-val" style="color:#28a745; font-size:1.8rem;">${
+               data.percentage
+             }%</span>
+             <span class="stat-label" style="font-size:0.7em;">${
+               data.score
+             } / ${data.maxScore}</span>
            </div>
            
+           <!-- Accuracy Section -->
            <div class="stat-box" style="border-left: 5px solid #007bff;">
              <span class="stat-label">Accuracy</span>
-             <span class="stat-val" style="color:#007bff; font-size:1.4rem;">${data.accuracy || '0%'}</span>
+             <span class="stat-val" style="color:#007bff; font-size:1.4rem;">${
+               data.accuracy || "0%"
+             }</span>
              <span class="stat-label" style="font-size:0.7em;">Quality of Attempt</span>
            </div>
 
+           <!-- Weakest Area Section -->
            <div class="stat-box" style="border-left: 5px solid #dc3545;">
              <span class="stat-label">Weakest Area</span>
-             <span class="stat-val" style="color:#dc3545; font-size:1.1rem; line-height:1.2; padding-top:5px;">${data.weakestSection}</span>
+             <span class="stat-val" style="color:#dc3545; font-size:1.1rem; line-height:1.2; padding-top:5px;">${
+               data.weakestSection
+             }</span>
            </div>
          </div>
 
+         <!-- Section Performance Breakdown -->
          <div style="background:#f8f9fa; padding:15px; border-radius:8px; text-align:left; margin-bottom:20px;">
             <h4 style="margin:0 0 10px 0; color:#555;">🧩 Section Breakdown</h4>
-            <pre style="margin:0; font-family:inherit; white-space: pre-wrap; color:#333;">${data.sectionReport || 'No Data'}</pre>
+            <pre style="margin:0; font-family:inherit; white-space: pre-wrap; color:#333;">${
+              data.sectionReport || "No Data"
+            }</pre>
          </div>
 
+         <!-- Strategy and Recommendations -->
          <div style="background:#fff3cd; padding:10px; border-radius:8px; font-size:0.9em; margin-bottom:20px; border:1px solid #ffeeba;">
-            <strong>Strategy:</strong> ${data.strategy || ''}
+            <strong>Strategy:</strong> ${data.strategy || ""}
          </div>
 
+         <!-- Detailed Error Analysis Table -->
          <h3 style="text-align:left; margin-top:30px; border-bottom:2px solid #eee; padding-bottom:10px;">
             ⚠️ Detailed Error Log
          </h3>
          
          <div style="overflow-x:auto;">
            <table style="width:100%; border-collapse:collapse; text-align:left;">
+             <!-- Table Headers -->
              <thead>
                <tr style="background:#f8f9fa;">
                  <th style="padding:10px;">Q.No</th>
@@ -812,15 +948,22 @@
                  <th style="padding:10px;">Key</th>
                </tr>
              </thead>
+             <!-- Table Body with Mistake Rows -->
              <tbody>
-               ${tableRows.length > 0 ? tableRows : '<tr><td colspan="4" style="text-align:center; padding:20px;">🎉 Clean Sheet! Great Job!</td></tr>'}
+               ${
+                 tableRows.length > 0
+                   ? tableRows
+                   : '<tr><td colspan="4" style="text-align:center; padding:20px;">🎉 Clean Sheet! Great Job!</td></tr>'
+               }
              </tbody>
            </table>
          </div>
 
+         <!-- Close Report Button -->
          <button class="btn-review" onclick="location.reload()" style="margin-top:30px;">Close Report</button>
       </div>
     `;
+        // Add the report to the page
         body.appendChild(resultDiv);
       }
     </script>
